@@ -1,5 +1,5 @@
 fastapi
 uvicorn
-openai
 python-dotenv
-PyPDF2
+requests
+PyMuPDF

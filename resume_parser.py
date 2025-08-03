@@ -1,5 +1,11 @@
-from PyPDF2 import PdfReader
+import fitz  # PyMuPDF
 
-def extract_resume_text(pdf_path: str = "resume.pdf") -> str:
-    reader = PdfReader(pdf_path)
-    return " ".join(page.extract_text() for page in reader.pages if page.extract_text())
+def extract_resume_text(file_path: str) -> str:
+    try:
+        doc = fitz.open(file_path)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        return text.strip()
+    except Exception as e:
+        return "Resume text could not be extracted."
