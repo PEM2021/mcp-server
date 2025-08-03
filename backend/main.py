@@ -6,8 +6,10 @@ from email_sender import send_email
 from dotenv import load_dotenv
 import requests
 import os
+import time
+from requests.exceptions import Timeout, RequestException
 
-# Load environment variables from .env
+# Load environment variables
 load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 if not OPENROUTER_API_KEY:
@@ -25,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load resume content at startup
+# Load resume text once at startup
 resume_text = extract_resume_text("resume.pdf")
 
 # Request models
@@ -37,40 +39,53 @@ class EmailRequest(BaseModel):
     subject: str
     body: str
 
-# Health check route
+# Health check
 @app.get("/")
 def root():
     return {"message": "✅ MCP server is running. Visit /docs to test."}
 
-# /chat endpoint using FREE OpenRouter model
+# /chat endpoint with OpenRouter API
 @app.post("/chat")
 def chat_with_resume(req: ChatRequest):
-    try:
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
 
-        payload = {
-            "model": "mistralai/mistral-7b-instruct",  # ✅ FREE MODEL
-            "messages": [
-                {"role": "system", "content": "You are a helpful resume assistant."},
-                {"role": "user", "content": f"My resume: {resume_text}"},
-                {"role": "user", "content": req.question}
-            ]
-        }
+    payload = {
+        "model": "mistralai/mistral-7b-instruct",  # ✅ More stable than gemma-7b
+        "messages": [
+            {
+                "role": "system",
+                "content": f"You are a helpful resume assistant. Resume summary: {resume_text[:750]}"
+            },
+            {
+                "role": "user",
+                "content": req.question
+            }
+        ]
+    }
 
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=20
-        )
-        response.raise_for_status()
-        data = response.json()
-        return {"response": data["choices"][0]["message"]["content"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Retry logic (up to 3 attempts)
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {"response": data["choices"][0]["message"]["content"]}
+        except Timeout:
+            if attempt < 2:
+                time.sleep(2)
+                continue
+            else:
+                raise HTTPException(status_code=504, detail="Gateway Timeout: OpenRouter API did not respond.")
+        except RequestException as e:
+            raise HTTPException(status_code=500, detail=f"Request failed: {str(e)}")
 
 # /send-email endpoint
 @app.post("/send-email")
