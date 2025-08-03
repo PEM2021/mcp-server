@@ -10,7 +10,7 @@ A FastAPI server that:
 
 ## 🚀 Live Demo
 
-🔗 [https://your-live-deployment-link.com](https://your-live-deployment-link.com)
+🔗 [https://mcp-server-92fy.onrender.com](https://your-live-deployment-link.com)
 
 ---
 
