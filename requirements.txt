@@ -1,7 +1,7 @@
-# requirements.txt for MCP Server
 fastapi
 uvicorn
 python-dotenv
 langchain
 openai
 pypdf
+requests
