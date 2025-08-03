@@ -10,3 +10,4 @@ venv/
 
 # VSCode
 .vscode/
+.env
